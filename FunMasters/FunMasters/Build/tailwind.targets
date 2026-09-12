@@ -1,6 +1,6 @@
 ﻿<Project>
     <!-- Make sure Tailwind CLI exists -->
-    <Target Name="EnsureTailwind" BeforeTargets="Build">
+    <Target Name="EnsureTailwind" BeforeTargets="BuildTailwind">
         <Message Text="Checking Tailwind CLI..." Importance="high" />
 
         <!-- Windows -->
