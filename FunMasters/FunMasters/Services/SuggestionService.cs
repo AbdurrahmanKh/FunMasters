@@ -215,9 +215,12 @@ public class SuggestionService(
 
         await queueManager.UpdateQueueAsync();
 
-        var user = await db.Users.FindAsync(userId);
-        if (user != null)
-            await lucianGalade.SendNewSuggestionAsync(user.UserName ?? "Unknown", request.Title);
+        if (!suggestion.IsHidden)
+        {
+            var user = await db.Users.FindAsync(userId);
+            if (user != null)
+                await lucianGalade.SendNewSuggestionAsync(user.UserName ?? "Unknown", request.Title);
+        }
 
         return ApiResult<Guid>.Ok(suggestion.Id);
     }
