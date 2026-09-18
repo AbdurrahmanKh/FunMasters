@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 public class HltbService
 {
     private readonly HttpClient _httpClient;
-    private const string ApiUrl = "https://howlongtobeat.com/api/bleed";
+    private const string ApiUrl = "https://howlongtobeat.com/api/search/site";
     private TokenClass? _cachedToken;
     private DateTime _tokenExpiry = DateTime.MinValue;
 
@@ -91,10 +91,10 @@ public class HltbService
             request.Headers.Add("x-hp-val", authToken.HpValue);
 
             searchPayload[authToken.HpKey] = authToken.HpValue;
-            
+
             string jsonPayload = searchPayload.ToJsonString();
             request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-            
+
             var response = await _httpClient.SendAsync(request);
 
             if (!response.IsSuccessStatusCode)
@@ -145,7 +145,7 @@ public class HltbService
 
             var responseJson = await response.Content.ReadAsStringAsync();
             TokenClass? token = JsonSerializer.Deserialize<TokenClass>(responseJson);
-            
+
 
             if (token != null)
             {
@@ -166,7 +166,7 @@ public class HltbService
     {
         return seconds > 0 ? Math.Round(seconds / 3600.0, 1) : 0;
     }
-    
+
     public static bool IsWord(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
