@@ -4,7 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FunMasters.Services;
 
-public class QueueManager(ApplicationDbContext db, SteamPlaytimeService steamPlaytimeService, LucianGalade lucianGalade)
+public class QueueManager(
+    ApplicationDbContext db,
+    SteamPlaytimeService steamPlaytimeService,
+    LucianGalade lucianGalade,
+    CycleService cycleService)
 {
     public async Task UpdateQueueAsync()
     {
@@ -28,6 +32,7 @@ public class QueueManager(ApplicationDbContext db, SteamPlaytimeService steamPla
             if (next != null)
             {
                 next.Status = SuggestionStatus.Active;
+                await cycleService.StampOnPromotionAsync(next, finished);
                 if (finished != null)
                     await NotifyGameRotationAsync(finished, next);
             }
@@ -35,6 +40,9 @@ public class QueueManager(ApplicationDbContext db, SteamPlaytimeService steamPla
         await db.SaveChangesAsync();
 
         await RebuildQueueAsync();
+
+        await cycleService.StampMissingAsync();
+        await cycleService.SettleDueCyclesAsync();
     }
 
     private async Task NotifyGameRotationAsync(Suggestion outgoing, Suggestion incoming)
@@ -71,6 +79,7 @@ public class QueueManager(ApplicationDbContext db, SteamPlaytimeService steamPla
             .ToListAsync();
 
         var lastGame = await db.Suggestions
+            .Include(s => s.SuggestedBy)
             .Where(s => s.Status == SuggestionStatus.Finished || s.Status == SuggestionStatus.Active)
             .OrderByDescending(s => s.FinishedAtUtc)
             .FirstOrDefaultAsync();

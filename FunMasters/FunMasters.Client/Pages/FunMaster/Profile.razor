@@ -39,6 +39,19 @@
                                     <span class="badge badge-neutral">Shadow</span>
                                     break;
                             }
+                            @if (_profile.TotalGems > 0)
+                            {
+                                <span class="badge badge-warning badge-outline" title="Gems drawn by their reviews">
+                                    💎 @_profile.TotalGems
+                                </span>
+                            }
+                            @foreach (var win in _profile.WriterOfTheCycleWins)
+                            {
+                                <span class="badge badge-warning"
+                                      title="@($"Cycle {win.CycleNumber} — {win.GemCount} gem(s)")">
+                                    Writer of Cycle @win.CycleNumber
+                                </span>
+                            }
                         </div>
                     </div>
                 </div>
@@ -72,13 +85,92 @@
                         <p class="whitespace-pre-wrap">@_profile.Bio</p>
                     </div>
                 }
+
+                @if (_profile.TopRatedGames.Any())
+                {
+                    <div class="mt-4">
+                        <h4 class="text-lg font-bold mb-2">Highest Verdicts</h4>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var top in _profile.TopRatedGames)
+                            {
+                                <a href="/game/@top.SuggestionId"
+                                   class="flex items-center gap-2 bg-base-100 rounded-box p-2 pe-3 card-hover">
+                                    @if (!string.IsNullOrEmpty(top.CoverImageUrl))
+                                    {
+                                        <img src="@top.CoverImageUrl" alt="@top.Title"
+                                             class="w-10 h-10 object-cover rounded"/>
+                                    }
+                                    <span>
+                                        <span class="block text-sm font-bold">@top.Title</span>
+                                        <span class="text-primary text-sm">@top.DecimalScore.ToString("0.#")/10</span>
+                                        <span class="text-xs opacity-70">@top.RatingLabel</span>
+                                    </span>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="mt-4">
+                    <h4 class="text-lg font-bold mb-2">Criminal Record</h4>
+                    <div class="stats stats-horizontal bg-base-100 shadow-sm">
+                        <div class="stat py-3">
+                            <div class="stat-title text-xs">Missed Verdicts</div>
+                            <div class="stat-value text-2xl @(_profile.CriminalRecord.MissedVerdicts > 0 ? "text-error" : "opacity-50")">
+                                @_profile.CriminalRecord.MissedVerdicts
+                            </div>
+                        </div>
+                        <div class="stat py-3">
+                            <div class="stat-title text-xs">Insubstantial Reviews</div>
+                            <div class="stat-value text-2xl @(_profile.CriminalRecord.WeakReviews > 0 ? "text-error" : "opacity-50")">
+                                @_profile.CriminalRecord.WeakReviews
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        @if (_profile.SuggestedGames.Any())
-        {
-            <div class="max-w-[800px] m-auto mt-6">
-                <h3 class="text-2xl mb-3">Suggested Games</h3>
+        @* Radio tabs rather than Blazor state: no interactivity needed, so they work under
+           static prerender exactly as they do once WASM has taken over. *@
+        <div class="max-w-[800px] m-auto mt-6">
+            <div class="tabs tabs-lift">
+
+                <input type="radio" name="profile-tabs" class="tab" aria-label="Reviews" checked/>
+                <div class="tab-content bg-base-100 border-base-300 p-4">
+                    @if (_profile.ReviewedGames.Any())
+                    {
+                        <div class="space-y-2">
+                            @foreach (var review in _profile.ReviewedGames)
+                            {
+                                @ReviewCard(review)
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="opacity-60">No verdicts delivered yet.</p>
+                    }
+                </div>
+
+                @* Absent entirely when none of their reviews have drawn a gem. *@
+                @if (_profile.BestReviews.Any())
+                {
+                    <input type="radio" name="profile-tabs" class="tab" aria-label="Best Reviews"/>
+                    <div class="tab-content bg-base-100 border-base-300 p-4">
+                        <div class="space-y-2">
+                            @foreach (var review in _profile.BestReviews)
+                            {
+                                @ReviewCard(review)
+                            }
+                        </div>
+                    </div>
+                }
+
+                <input type="radio" name="profile-tabs" class="tab" aria-label="Suggested Games"/>
+                <div class="tab-content bg-base-100 border-base-300 p-4">
+                @if (_profile.SuggestedGames.Any())
+                {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     @foreach (var game in _profile.SuggestedGames)
                     {
@@ -100,39 +192,15 @@
                         </a>
                     }
                 </div>
-            </div>
-        }
-
-        @if (_profile.ReviewedGames.Any())
-        {
-            <div class="max-w-[800px] m-auto mt-6">
-                <h3 class="text-2xl mb-3">Reviewed Games</h3>
-                <div class="space-y-2">
-                    @foreach (var review in _profile.ReviewedGames)
-                    {
-                        <a href="/game/@review.SuggestionId" class="card bg-base-200 shadow-sm card-hover block">
-                            <div class="card-body flex-row items-center gap-3 p-3">
-                                @if (!string.IsNullOrEmpty(review.CoverImageUrl))
-                                {
-                                    <img src="@review.CoverImageUrl" alt="@review.Title" class="w-16 h-16 object-cover rounded flex-shrink-0"/>
-                                }
-                                <div class="min-w-0">
-                                    <h4 class="font-bold">@review.Title</h4>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-primary font-bold">@((review.Score / 10m).ToString("0.#"))/10</span>
-                                        <span class="text-sm opacity-70">@review.RatingLabel</span>
-                                    </div>
-                                    @if (!string.IsNullOrWhiteSpace(review.Comment))
-                                    {
-                                        <p class="text-sm opacity-70 mt-1 line-clamp-2">@review.Comment</p>
-                                    }
-                                </div>
-                            </div>
-                        </a>
-                    }
+                }
+                else
+                {
+                    <p class="opacity-60">No titles put before the Council yet.</p>
+                }
                 </div>
+
             </div>
-        }
+        </div>
 
         <div class="max-w-[800px] m-auto mt-6">
             <h3 class="text-2xl mb-3">Comments</h3>
@@ -193,6 +261,32 @@
 </div>
 
 @code {
+    /// One card shared by the Reviewed Games and Best Reviews lists.
+    private RenderFragment<UserRatingDto> ReviewCard => review =>
+        @<a href="/game/@review.SuggestionId" class="card bg-base-200 shadow-sm card-hover block">
+            <div class="card-body flex-row items-center gap-3 p-3">
+                @if (!string.IsNullOrEmpty(review.CoverImageUrl))
+                {
+                    <img src="@review.CoverImageUrl" alt="@review.Title" class="w-16 h-16 object-cover rounded flex-shrink-0"/>
+                }
+                <div class="min-w-0">
+                    <h4 class="font-bold">@review.Title</h4>
+                    <div class="flex items-center gap-2">
+                        <span class="text-primary font-bold">@review.DecimalScore.ToString("0.#")/10</span>
+                        <span class="text-sm opacity-70">@review.RatingLabel</span>
+                        @if (review.GemCount > 0)
+                        {
+                            <span class="text-warning text-sm">💎 @review.GemCount</span>
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(review.Comment))
+                    {
+                        <p class="text-sm opacity-70 mt-1 line-clamp-2">@review.Comment</p>
+                    }
+                </div>
+            </div>
+        </a>;
+
     [Parameter] public Guid UserId { get; set; }
 
     [PersistentState] public FunMasterProfileDto? _profile { get; set; }
@@ -204,12 +298,11 @@
     private Guid? _myId;
     private bool _isAdmin;
 
+    /// Who is viewing does not change as we move between profiles, so it is resolved once.
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            _profile ??= await AccountApi.GetFunMasterProfileAsync(UserId);
-
             if (AuthenticationStateTask != null)
             {
                 var authState = await AuthenticationStateTask;
@@ -219,6 +312,31 @@
                     _isAdmin = authState.User.IsInRole("Admin");
                 }
             }
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Blazor keeps this component alive when only the route parameter changes — navigating from
+    /// one Fun Master to another does not re-initialise it. So the profile is loaded here, and
+    /// reloaded whenever the id we are holding no longer matches the one in the URL.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        // Already holding the right one, including the prerendered payload on first render.
+        if (_profile != null && _profile.Id == UserId)
+        {
+            _loading = false;
+            return;
+        }
+
+        _loading = true;
+        _profile = null;
+        _newComment = "";
+
+        try
+        {
+            _profile = await AccountApi.GetFunMasterProfileAsync(UserId);
         }
         catch { }
         finally { _loading = false; }

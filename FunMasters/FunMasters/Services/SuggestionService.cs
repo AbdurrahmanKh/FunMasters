@@ -128,7 +128,7 @@ public class SuggestionService(
 
         if (suggestion == null) return null;
         var playtimes = await steamPlaytimeService.GetPlaytimesForSuggestionAsync(id);
-        return MapToDetailDto(suggestion, playtimes);
+        return MapToDetailDto(suggestion, playtimes, await LoadGemStateAsync(suggestion));
     }
 
     public async Task<SuggestionDetailDto?> GetActiveSuggestionAsync()
@@ -145,7 +145,7 @@ public class SuggestionService(
 
         if (suggestion == null) return null;
         var playtimes = await steamPlaytimeService.GetPlaytimesForSuggestionAsync(suggestion.Id);
-        return MapToDetailDto(suggestion, playtimes);
+        return MapToDetailDto(suggestion, playtimes, await LoadGemStateAsync(suggestion));
     }
 
     public async Task<List<SuggestionDto>> GetMySuggestionsAsync()
@@ -399,7 +399,42 @@ public class SuggestionService(
         };
     }
 
-    private SuggestionDetailDto MapToDetailDto(Suggestion suggestion, List<SteamPlaytimeDto> playtimes)
+    /// <summary>
+    /// Pulls every gem on this title in one round-trip — the row count is bounded by the Council's
+    /// size, so fetching them beats two separate aggregates. Yields both the per-review tallies and
+    /// which review the viewer already spent their gem on.
+    /// </summary>
+    private async Task<(Dictionary<Guid, int> CountsByRating, Guid? MyGemRatingId, bool CanAward)>
+        LoadGemStateAsync(Suggestion suggestion)
+    {
+        var gems = await db.Gems
+            .Where(g => g.SuggestionId == suggestion.Id)
+            .Select(g => new { g.RatingId, g.AwardedById })
+            .ToListAsync();
+
+        var countsByRating = gems
+            .GroupBy(g => g.RatingId)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        // The game page is open to anonymous visitors, so absence of a viewer is normal.
+        var viewerId = TryGetCurrentUserId();
+        if (viewerId == null)
+            return (countsByRating, null, false);
+
+        var myGemRatingId = gems.FirstOrDefault(g => g.AwardedById == viewerId)?.RatingId;
+
+        // Only members who delivered their own verdict may award, and only once deliberation ended.
+        var canAward = suggestion.Status == SuggestionStatus.Finished
+                       && myGemRatingId == null
+                       && suggestion.Ratings.Any(r => r.RaterId == viewerId);
+
+        return (countsByRating, myGemRatingId, canAward);
+    }
+
+    private SuggestionDetailDto MapToDetailDto(
+        Suggestion suggestion,
+        List<SteamPlaytimeDto> playtimes,
+        (Dictionary<Guid, int> CountsByRating, Guid? MyGemRatingId, bool CanAward) gemState)
     {
         var playtimeByUser = playtimes.ToDictionary(p => p.UserId);
 
@@ -437,12 +472,15 @@ public class SuggestionService(
                     RatingLabel = RatingUtils.GetRatingLabel(r.Score),
                     RaterSteamId = r.Rater?.SteamId,
                     PlaytimeForeverMinutes = pt?.PlaytimeForeverMinutes,
-                    Playtime2WeeksMinutes = pt?.Playtime2WeeksMinutes
+                    Playtime2WeeksMinutes = pt?.Playtime2WeeksMinutes,
+                    GemCount = gemState.CountsByRating.GetValueOrDefault(r.Id)
                 };
             }).ToList(),
             NonReviewerPlaytimes = playtimes
                 .Where(p => !raterIds.Contains(p.UserId))
-                .ToList()
+                .ToList(),
+            MyGemRatingId = gemState.MyGemRatingId,
+            CanAwardGem = gemState.CanAward
         };
     }
 
@@ -452,5 +490,14 @@ public class SuggestionService(
         if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
             throw new UnauthorizedAccessException("User is not authenticated");
         return userId;
+    }
+
+    /// <summary>
+    /// Null for an anonymous visitor rather than throwing — the game pages are public.
+    /// </summary>
+    private Guid? TryGetCurrentUserId()
+    {
+        var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
     }
 }

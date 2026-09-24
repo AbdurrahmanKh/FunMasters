@@ -15,7 +15,8 @@ public class AdminService(
     BadgeStorage badgeStorage,
     QueueManager queueManager,
     LucianGalade lucianGalade,
-    TelegramService telegram) : IAdminApiService
+    TelegramService telegram,
+    CycleService cycleService) : IAdminApiService
 {
     private const string AdminRole = "Admin";
 
@@ -256,6 +257,11 @@ public class AdminService(
         if (suggestion == null)
             return ApiResult.Fail("Suggestion not found");
 
+        // CycleNumber is a foreign key; an unknown value fails at the database with no useful message.
+        if (request.CycleNumber is int cycleNumber
+            && !await db.Cycles.AnyAsync(c => c.CycleNumber == cycleNumber))
+            return ApiResult.Fail($"Cycle {cycleNumber} does not exist");
+
         suggestion.Status = request.Status;
         suggestion.ActiveAtUtc = request.ActiveAtUtc;
         suggestion.FinishedAtUtc = request.FinishedAtUtc;
@@ -449,6 +455,52 @@ public async Task<ApiResult> RemoveBadgeAsync(Guid userId, Guid badgeId)
         await db.SaveChangesAsync();
         return ApiResult.Ok();
     }
+
+    // Cycles
+    public async Task<List<CycleAdminDto>> GetCyclesAsync()
+    {
+        var cycles = await db.Cycles.OrderByDescending(c => c.CycleNumber).ToListAsync();
+
+        var gameCounts = await db.Suggestions
+            .Where(s => s.CycleNumber != null)
+            .GroupBy(s => s.CycleNumber!.Value)
+            .Select(x => new { CycleNumber = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.CycleNumber, x => x.Count);
+
+        // Pulled whole rather than aggregated twice: one row per gem ever awarded is a small set,
+        // and both the running total and the "arrived since settling" count come out of it.
+        var gems = await db.Gems
+            .Where(g => g.Suggestion!.CycleNumber != null)
+            .Select(g => new { CycleNumber = g.Suggestion!.CycleNumber!.Value, g.AwardedAtUtc })
+            .ToListAsync();
+
+        var writerIds = cycles
+            .Where(c => c.WriterOfTheCycleUserId != null)
+            .Select(c => c.WriterOfTheCycleUserId!.Value)
+            .ToList();
+
+        var writerNames = await db.Users
+            .Where(u => writerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
+
+        return cycles.Select(c => new CycleAdminDto
+        {
+            CycleNumber = c.CycleNumber,
+            StartAtUtc = c.StartAtUtc,
+            EndAtUtc = c.EndAtUtc,
+            GameCount = gameCounts.GetValueOrDefault(c.CycleNumber),
+            CurrentGemCount = gems.Count(g => g.CycleNumber == c.CycleNumber),
+            GemsSinceSettled = c.WriterSettledAtUtc == null
+                ? 0
+                : gems.Count(g => g.CycleNumber == c.CycleNumber && g.AwardedAtUtc > c.WriterSettledAtUtc),
+            WriterUserName = c.WriterOfTheCycleUserId is Guid wid ? writerNames.GetValueOrDefault(wid) : null,
+            WriterGemCount = c.WriterGemCount,
+            WriterSettledAtUtc = c.WriterSettledAtUtc
+        }).ToList();
+    }
+
+    public Task<ApiResult> RecomputeCycleWriterAsync(int cycleNumber) =>
+        cycleService.RecomputeWriterAsync(cycleNumber);
 
     // Telegram
     private static readonly HashSet<string> AllowedImageContentTypes = new(StringComparer.OrdinalIgnoreCase)

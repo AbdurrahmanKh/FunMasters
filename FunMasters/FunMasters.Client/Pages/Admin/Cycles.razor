@@ -1,0 +1,148 @@
+@page "/admin/cycles"
+@attribute [Authorize(Roles = "Admin")]
+@inject IAdminApiService AdminApi
+
+<PageTitle>Manage Cycles</PageTitle>
+
+<div class="max-w-[900px] m-auto mt-6 px-2">
+    <h1 class="text-3xl text-primary mb-2">Cycles</h1>
+    <p class="opacity-70 mb-4">
+        A cycle is one full rotation of the Council. Its Writer is named a fortnight after it closes.
+        Gems may still be awarded on old reviews at any time — when they are, the settled result can
+        fall behind, and the cycle is flagged below for recomputing.
+    </p>
+
+    @if (_cycles == null)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        @if (_message != null)
+        {
+            <div class="alert @(_messageIsError ? "alert-error" : "alert-success") mb-3">@_message</div>
+        }
+
+        <div class="card bg-base-200 shadow-md">
+            <div class="card-body p-3 md:p-6">
+                <div class="overflow-x-auto rounded-box border border-base-content/5 bg-base-100">
+                    <table class="table table-zebra">
+                        <thead>
+                        <tr>
+                            <th>Cycle</th>
+                            <th>Span</th>
+                            <th class="text-center">Titles</th>
+                            <th class="text-center">Gems</th>
+                            <th>Writer of the Cycle</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var cycle in _cycles)
+                        {
+                            <tr>
+                                <td class="font-bold">@cycle.CycleNumber</td>
+                                <td class="text-sm">
+                                    @cycle.StartAtUtc.ToString("dd MMM yyyy")
+                                    @if (cycle.IsOpen)
+                                    {
+                                        <span class="badge badge-info badge-sm ms-1">in progress</span>
+                                    }
+                                    else
+                                    {
+                                        <span> – @cycle.EndAtUtc!.Value.ToString("dd MMM yyyy")</span>
+                                    }
+                                </td>
+                                <td class="text-center">@cycle.GameCount</td>
+                                <td class="text-center">
+                                    @if (cycle.CurrentGemCount > 0)
+                                    {
+                                        <span class="text-warning">💎 @cycle.CurrentGemCount</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="opacity-40">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (cycle.WriterUserName != null)
+                                    {
+                                        <span>@cycle.WriterUserName</span>
+                                        <span class="opacity-60 text-sm">(@cycle.WriterGemCount gem(s))</span>
+                                    }
+                                    else if (cycle.WriterSettledAtUtc != null)
+                                    {
+                                        <span class="opacity-60">no gems awarded</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="opacity-40">not settled yet</span>
+                                    }
+                                    @if (cycle.IsStale)
+                                    {
+                                        <span class="badge badge-warning badge-sm ms-1"
+                                              title="@($"{cycle.GemsSinceSettled} gem(s) arrived after this was settled")">
+                                            out of date
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (!cycle.IsOpen)
+                                    {
+                                        <button class="btn btn-sm @(cycle.IsStale ? "btn-warning" : "btn-ghost")"
+                                                disabled="@_busy"
+                                                @onclick="() => Recompute(cycle.CycleNumber)">
+                                            Recompute
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [PersistentState] public List<CycleAdminDto>? _cycles { get; set; }
+
+    private bool _busy;
+    private string? _message;
+    private bool _messageIsError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _cycles ??= await AdminApi.GetCyclesAsync();
+        }
+        catch
+        {
+            _cycles = [];
+        }
+    }
+
+    private async Task Recompute(int cycleNumber)
+    {
+        _busy = true;
+        _message = null;
+        try
+        {
+            var result = await AdminApi.RecomputeCycleWriterAsync(cycleNumber);
+            _messageIsError = !result.Success;
+            _message = result.Success
+                ? $"Cycle {cycleNumber} settled again from the current tally."
+                : result.ErrorMessage;
+
+            if (result.Success)
+                _cycles = await AdminApi.GetCyclesAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

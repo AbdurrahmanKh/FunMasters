@@ -27,6 +27,10 @@ public interface IAdminApiService
     Task<ApiResult> AssignBadgeAsync(Guid userId, Guid badgeId);
     Task<ApiResult> RemoveBadgeAsync(Guid userId, Guid badgeId);
 
+    // Cycles
+    Task<List<CycleAdminDto>> GetCyclesAsync();
+    Task<ApiResult> RecomputeCycleWriterAsync(int cycleNumber);
+
     // Telegram
     Task<ApiResult> SendTelegramMessageAsync(string text, Stream? imageStream, string? imageFileName, string? imageContentType);
 }

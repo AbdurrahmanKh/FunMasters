@@ -144,7 +144,7 @@ public class RatingService(
         if (suggestion == null || suggestion.Status != SuggestionStatus.Finished)
             return;
 
-        var cutoff = suggestion.ActiveAtUtc ?? suggestion.FinishedAtUtc!.Value;
+        var cutoff = OffenceRules.Cutoff(suggestion);
         var eligibleMemberIds = await db.Users
             .Where(u => u.CycleOrder > 0 && CouncilStatusRoles.MustReview.Contains(u.CouncilStatus) && u.RegistrationDateUtc <= cutoff)
             .Select(u => u.Id)

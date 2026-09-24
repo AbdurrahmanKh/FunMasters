@@ -101,6 +101,7 @@ builder.Services.AddScoped<GameCoverStorage>();
 builder.Services.AddScoped<AvatarStorage>();
 builder.Services.AddScoped<BadgeStorage>();
 builder.Services.AddScoped<QueueManager>();
+builder.Services.AddScoped<CycleService>();
 builder.Services.AddScoped<LucianGalade>();
 
 // Enable access to HttpContext in services
@@ -113,6 +114,8 @@ builder.Services.AddScoped<IAdminApiService, AdminService>();
 builder.Services.AddScoped<IAccountApiService, AccountService>();
 builder.Services.AddScoped<IIgdbApiService, IgdbApiService>();
 builder.Services.AddScoped<IHltbApiService, HltbApiService>();
+builder.Services.AddScoped<IGemApiService, GemService>();
+builder.Services.AddScoped<IMemberApiService, MemberService>();
 
 var app = builder.Build();
 
@@ -167,11 +170,16 @@ app.MapAccountEndpoints();
 app.MapIgdbEndpoints();
 app.MapHltbEndpoints();
 app.MapSteamEndpoints();
+app.MapGemEndpoints();
+app.MapMemberEndpoints();
 
 using (var scope = app.Services.CreateScope()) {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     if(db.Database.GetPendingMigrations().Any())
         db.Database.Migrate();
+
+    // Partition the Council's existing history into cycles. Self-guarding: does nothing once done.
+    await scope.ServiceProvider.GetRequiredService<CycleService>().EnsureCyclesBackfilledAsync();
 }
 
 using(var scope = app.Services.CreateScope()){

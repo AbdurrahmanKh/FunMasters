@@ -212,7 +212,6 @@ public class AccountService(
             .Include(s => s.Ratings)
             .Where(s => s.SuggestedById == userId && s.Status != SuggestionStatus.Pending)
             .OrderByDescending(s => s.FinishedAtUtc)
-            .Take(20)
             .ToListAsync();
 
         // Reviewed games
@@ -221,7 +220,55 @@ public class AccountService(
             .ThenInclude(s => s!.SuggestedBy)
             .Where(r => r.RaterId == userId)
             .OrderByDescending(r => r.CreatedAtUtc)
-            .Take(20)
+            .ToListAsync();
+
+        var ratingIds = reviewedRatings.Select(r => r.Id).ToList();
+
+        // Side-loaded once and stitched in, rather than counted per review.
+        var gemsByRating = await db.Gems
+            .Where(g => ratingIds.Contains(g.RatingId))
+            .GroupBy(g => g.RatingId)
+            .Select(x => new { RatingId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.RatingId, x => x.Count);
+
+        UserRatingDto MapReview(Data.Rating r) => new()
+        {
+            RatingId = r.Id,
+            Score = r.Score,
+            Comment = r.Comment,
+            CreatedAtUtc = r.CreatedAtUtc,
+            RatingLabel = RatingUtils.GetRatingLabel(r.Score),
+            SuggestionId = r.SuggestionId,
+            Title = r.Suggestion?.Title ?? "",
+            CoverImageUrl = coverStorage.GetPublicUrl(r.SuggestionId),
+            GemCount = gemsByRating.GetValueOrDefault(r.Id)
+        };
+
+        // Criminal record. Missed verdicts need the full list of concluded titles; the weak
+        // reviews are already in hand. Same rules the reminder job shames members by.
+        var finishedGames = await db.Suggestions
+            .Where(s => s.Status == SuggestionStatus.Finished)
+            .Select(s => new { s.Id, Cutoff = s.ActiveAtUtc ?? s.FinishedAtUtc!.Value })
+            .ToListAsync();
+
+        var ratedSuggestionIds = reviewedRatings.Select(r => r.SuggestionId).ToHashSet();
+
+        var criminalRecord = new CriminalRecordDto
+        {
+            MissedVerdicts = finishedGames.Count(g =>
+                OffenceRules.OwesVerdict(user, g.Cutoff) && !ratedSuggestionIds.Contains(g.Id)),
+            WeakReviews = reviewedRatings.Count(r => !OffenceRules.IsCommentSubstantial(r.Comment))
+        };
+
+        var cycleWins = await db.Cycles
+            .Where(c => c.WriterOfTheCycleUserId == userId)
+            .OrderBy(c => c.CycleNumber)
+            .Select(c => new CycleAwardDto
+            {
+                CycleNumber = c.CycleNumber,
+                GemCount = c.WriterGemCount ?? 0,
+                EndAtUtc = c.EndAtUtc
+            })
             .ToListAsync();
 
         return new FunMasterProfileDto
@@ -239,17 +286,23 @@ public class AccountService(
                 ImageUrl = badgeStorage.GetPublicUrl(ub.BadgeId)
             }).ToList(),
             SuggestedGames = suggestedGames.Select(MapToSuggestionDto).ToList(),
-            ReviewedGames = reviewedRatings.Select(r => new UserRatingDto
-            {
-                RatingId = r.Id,
-                Score = r.Score,
-                Comment = r.Comment,
-                CreatedAtUtc = r.CreatedAtUtc,
-                RatingLabel = RatingUtils.GetRatingLabel(r.Score),
-                SuggestionId = r.SuggestionId,
-                Title = r.Suggestion?.Title ?? "",
-                CoverImageUrl = coverStorage.GetPublicUrl(r.SuggestionId)
-            }).ToList(),
+            ReviewedGames = reviewedRatings.Select(MapReview).ToList(),
+            TopRatedGames = reviewedRatings
+                .OrderByDescending(r => r.Score)
+                .ThenBy(r => r.CreatedAtUtc)
+                .Take(3)
+                .Select(MapReview)
+                .ToList(),
+            BestReviews = reviewedRatings
+                .Where(r => gemsByRating.ContainsKey(r.Id))
+                .OrderByDescending(r => gemsByRating[r.Id])
+                .ThenBy(r => r.CreatedAtUtc)
+                .Take(3)
+                .Select(MapReview)
+                .ToList(),
+            TotalGems = gemsByRating.Values.Sum(),
+            CriminalRecord = criminalRecord,
+            WriterOfTheCycleWins = cycleWins,
             Comments = user.ReceivedComments
                 .OrderByDescending(c => c.CreatedAtUtc)
                 .Select(c => new FunMasterCommentDto

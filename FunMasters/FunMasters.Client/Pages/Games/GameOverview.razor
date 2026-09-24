@@ -5,6 +5,7 @@
 @inject IRatingApiService RatingApi
 @inject IHltbApiService HltbApi
 @inject ISteamApiService SteamApi
+@inject IGemApiService GemApi
 @inject NavigationManager NavigationManager
 
 <div class="m-5">
@@ -125,12 +126,50 @@
                             @foreach (var ratingModel in _ratingViewModels)
                             {
                                 var rating = ratingModel.Rating;
-                                <div class="flex flex-col transition-all duration-300 mb-5 break-inside-avoid">
+                                <div class="flex flex-col transition-all duration-300 mb-5 break-inside-avoid @(IsGemLeader(rating) ? "gem-leader" : "")">
                                     <div class="flex flex-row">
                                         <img src="@rating.RaterAvatarUrl" class="me-2 w-25 h-25 mask mask-squircle"/>
                                         <div class="flex flex-col gap-2">
                                             <h5 class="text-xl underline"><a href="/funmaster/@rating.RaterId">@rating.RaterUserName</a><UserBadgeDisplay Badges="@rating.RaterBadges" UserId="@rating.RaterId" SizePx="18"/></h5>
                                             <RatingStars Rating="@rating.DecimalScore" class="text-3xl"/>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                @if (rating.GemCount > 0)
+                                                {
+                                                    <span class="text-warning text-sm" title="@($"{rating.GemCount} gem(s)")">
+                                                        💎 @rating.GemCount
+                                                    </span>
+                                                }
+                                                @if (Game!.MyGemRatingId == rating.Id)
+                                                {
+                                                    <span class="badge badge-warning badge-sm">Your gem</span>
+                                                }
+                                                else if (Game.CanAwardGem && rating.RaterId != _myId)
+                                                {
+                                                    @* Two steps on purpose: a gem cannot be withdrawn. *@
+                                                    @if (_confirmingGemFor == rating.Id)
+                                                    {
+                                                        <button class="btn btn-warning btn-xs" disabled="@_awardingGem"
+                                                                @onclick="() => AwardGem(rating)">
+                                                            Confirm — this cannot be undone
+                                                        </button>
+                                                        <button class="btn btn-ghost btn-xs" disabled="@_awardingGem"
+                                                                @onclick="() => _confirmingGemFor = null">
+                                                            Cancel
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-outline btn-warning btn-xs"
+                                                                @onclick="() => _confirmingGemFor = rating.Id">
+                                                            💎 Award gem
+                                                        </button>
+                                                    }
+                                                }
+                                            </div>
+                                            @if (_gemError != null && _confirmingGemFor == rating.Id)
+                                            {
+                                                <span class="text-error text-sm">@_gemError</span>
+                                            }
                                             @if (rating.PlaytimeForeverMinutes.HasValue || rating.Playtime2WeeksMinutes.HasValue)
                                             {
                                                 <a href="@rating.RaterSteamProfileUrl" target="_blank" rel="noopener noreferrer"
@@ -210,6 +249,45 @@
 
     private List<GameRatingViewModel> _ratingViewModels = [];
     private bool _hltbLoading = true;
+
+    private Guid? _confirmingGemFor;
+    private bool _awardingGem;
+    private string? _gemError;
+
+    /// <summary>
+    /// The review (or reviews, when tied) holding the most gems for this title. Decided here
+    /// rather than on the server so the bar moves the instant a gem is awarded.
+    /// </summary>
+    private bool IsGemLeader(RatingDto rating)
+    {
+        if (rating.GemCount == 0) return false;
+        return rating.GemCount == Game!.Ratings.Max(r => r.GemCount);
+    }
+
+    private async Task AwardGem(RatingDto rating)
+    {
+        _awardingGem = true;
+        _gemError = null;
+        try
+        {
+            var result = await GemApi.AwardGemAsync(new AwardGemRequest { RatingId = rating.Id });
+            if (result.Success)
+            {
+                rating.GemCount = result.Data;
+                Game!.MyGemRatingId = rating.Id;
+                Game.CanAwardGem = false;
+                _confirmingGemFor = null;
+            }
+            else
+            {
+                _gemError = result.ErrorMessage;
+            }
+        }
+        finally
+        {
+            _awardingGem = false;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

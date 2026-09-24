@@ -138,6 +138,20 @@ public class AdminApiService(HttpClient http) : IAdminApiService
             ?? ApiResult.Fail("Failed to remove badge");
     }
 
+    // Cycles
+    public async Task<List<CycleAdminDto>> GetCyclesAsync()
+    {
+        return await http.GetFromJsonAsync<List<CycleAdminDto>>("/api/admin/cycles")
+            ?? [];
+    }
+
+    public async Task<ApiResult> RecomputeCycleWriterAsync(int cycleNumber)
+    {
+        var response = await http.PostAsync($"/api/admin/cycles/{cycleNumber}/recompute-writer", null);
+        return await response.Content.ReadFromJsonAsync<ApiResult>()
+            ?? ApiResult.Fail("Failed to recompute the cycle's Writer");
+    }
+
     // Telegram
     public async Task<ApiResult> SendTelegramMessageAsync(string text, Stream? imageStream, string? imageFileName, string? imageContentType)
     {
