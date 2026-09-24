@@ -136,12 +136,6 @@
 }
 
 
-/* The nav's split Members control: peer-checked reaches siblings only, and the chevron is a
-   descendant of one, so it needs its own rule. */
-.nav-split-toggle:checked ~ * .nav-split-chevron {
-    transform: rotate(180deg);
-}
-
 /* The review that drew the most gems for a title. Subtle by construction: the gold comes from
    the theme's warning colour, mixed down, never a hardcoded hex. */
 .gem-leader {
