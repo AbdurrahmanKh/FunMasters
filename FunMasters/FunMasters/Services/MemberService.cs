@@ -33,15 +33,15 @@ public class MemberService(
             .ThenInclude(ub => ub.Badge)
             .ToListAsync();
 
-        var finishedGames = await db.Suggestions
-            .Where(s => s.Status == SuggestionStatus.Finished)
+        var finishedGames = await OffenceRules.JudgeableFinishedGames(db)
             .Select(s => new { s.Id, Cutoff = s.ActiveAtUtc ?? s.FinishedAtUtc!.Value })
             .ToListAsync();
 
         // Only the opening of each comment is needed to count three words, and Comment runs to
         // 50,000 characters. (A 512-character unbroken token would be misjudged; not plausible.)
         var ratings = await db.Ratings
-            .Where(r => r.Suggestion!.Status == SuggestionStatus.Finished)
+            .Where(r => r.Suggestion!.Status == SuggestionStatus.Finished
+                        && (r.Suggestion.ActiveAtUtc != null || r.Suggestion.FinishedAtUtc != null))
             .Select(r => new
             {
                 r.RaterId,

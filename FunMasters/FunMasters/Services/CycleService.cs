@@ -25,8 +25,11 @@ public class CycleService(ApplicationDbContext db, ILogger<CycleService> logger)
     public static readonly TimeSpan SettlementPeriod = TimeSpan.FromDays(14);
 
     /// <summary>
-    /// Partitions the Council's existing history into cycles. One-shot: guarded on the Cycles
-    /// table being empty, so restarts are safe. To redo it, delete every Cycle row and restart.
+    /// Partitions the Council's existing history into cycles. One-shot: it walks from zero, so it
+    /// only runs when no cycle exists at all. Titles that appear unstamped later are picked up by
+    /// <see cref="StampMissingAsync"/> instead, which appends rather than re-partitioning.
+    /// (Re-running this means clearing Suggestions.CycleNumber first — the foreign key blocks
+    /// deleting the Cycles rows on their own.)
     /// </summary>
     public async Task EnsureCyclesBackfilledAsync()
     {
@@ -85,7 +88,12 @@ public class CycleService(ApplicationDbContext db, ILogger<CycleService> logger)
         if (current == null || wrapped)
         {
             if (current != null)
-                current.EndAtUtc = outgoing?.FinishedAtUtc ?? FunMastersTime.UtcNow;
+                // A rotation ends when its last title concluded. Falling back to the clock
+                // would close an in-progress cycle at "now" whenever a back-dated title is
+                // stamped late by StampMissingAsync.
+                current.EndAtUtc = outgoing?.FinishedAtUtc
+                                   ?? await LastFinishAsync(current.CycleNumber)
+                                   ?? FunMastersTime.UtcNow;
 
             current = new Cycle { StartAtUtc = incoming.ActiveAtUtc ?? FunMastersTime.UtcNow };
             db.Cycles.Add(current);
@@ -184,6 +192,13 @@ public class CycleService(ApplicationDbContext db, ILogger<CycleService> logger)
             "Cycle {CycleNumber} settled; Writer of the Cycle: {Winner}.",
             cycle.CycleNumber, winner?.UserId.ToString() ?? "none (no gems awarded)");
     }
+
+    /// When the last title of a cycle concluded — used to close it at the right moment
+    /// rather than at wall-clock time.
+    private async Task<DateTime?> LastFinishAsync(int cycleNumber) =>
+        await db.Suggestions
+            .Where(s => s.CycleNumber == cycleNumber && s.FinishedAtUtc != null)
+            .MaxAsync(s => (DateTime?)s.FinishedAtUtc);
 
     private IQueryable<Suggestion> StampableGamesQuery() =>
         db.Suggestions

@@ -244,20 +244,22 @@ public class AccountService(
             GemCount = gemsByRating.GetValueOrDefault(r.Id)
         };
 
-        // Criminal record. Missed verdicts need the full list of concluded titles; the weak
-        // reviews are already in hand. Same rules the reminder job shames members by.
-        var finishedGames = await db.Suggestions
-            .Where(s => s.Status == SuggestionStatus.Finished)
+        // Criminal record, by the same rules the member roll and the reminder job use.
+        var finishedGames = await OffenceRules.JudgeableFinishedGames(db)
             .Select(s => new { s.Id, Cutoff = s.ActiveAtUtc ?? s.FinishedAtUtc!.Value })
             .ToListAsync();
 
+        var judgeableIds = finishedGames.Select(g => g.Id).ToHashSet();
         var ratedSuggestionIds = reviewedRatings.Select(r => r.SuggestionId).ToHashSet();
 
         var criminalRecord = new CriminalRecordDto
         {
             MissedVerdicts = finishedGames.Count(g =>
                 OffenceRules.OwesVerdict(user, g.Cutoff) && !ratedSuggestionIds.Contains(g.Id)),
-            WeakReviews = reviewedRatings.Count(r => !OffenceRules.IsCommentSubstantial(r.Comment))
+            // Only verdicts on concluded titles count, matching MemberService — a short note on the
+            // title currently before the Council is not yet an offence.
+            WeakReviews = reviewedRatings.Count(r =>
+                judgeableIds.Contains(r.SuggestionId) && !OffenceRules.IsVerdictSubstantial(r.Comment))
         };
 
         var cycleWins = await db.Cycles

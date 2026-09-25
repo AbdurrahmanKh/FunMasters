@@ -262,6 +262,12 @@ public class AdminService(
             && !await db.Cycles.AnyAsync(c => c.CycleNumber == cycleNumber))
             return ApiResult.Fail($"Cycle {cycleNumber} does not exist");
 
+        // A title that has gone before the Council must have a date. Without one there is no cutoff
+        // to judge a member's registration against, and every criminal-record query would throw.
+        if (request.Status is SuggestionStatus.Active or SuggestionStatus.Finished
+            && request.ActiveAtUtc == null && request.FinishedAtUtc == null)
+            return ApiResult.Fail("An active or finished title needs an active or finished date");
+
         suggestion.Status = request.Status;
         suggestion.ActiveAtUtc = request.ActiveAtUtc;
         suggestion.FinishedAtUtc = request.FinishedAtUtc;

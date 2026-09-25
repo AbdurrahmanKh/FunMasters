@@ -22,18 +22,18 @@
                 <div class="flex items-center gap-4">
                     <img src="@_profile.AvatarUrl" class="w-20 h-20 mask mask-squircle"/>
                     <div>
-                        <h2 class="text-3xl text-primary">@_profile.UserName</h2>
+                        <h2 class="text-3xl text-primary @(_profile.CouncilStatus == "Executed" ? "line-through opacity-60" : "")">@_profile.UserName</h2>
                         <div class="flex gap-1 items-center mt-1">
                             @switch (_profile.CouncilStatus)
                             {
                                 case "Excommunicated":
-                                    <span class="badge badge-error">Excommunicated</span>
+                                    <span class="badge badge-warning">Excommunicated</span>
                                     break;
                                 case "Executed":
-                                    <span class="badge badge-ghost">Executed</span>
+                                    <span class="badge badge-error">Executed</span>
                                     break;
                                 case "Candidate":
-                                    <span class="badge badge-warning">Candidate</span>
+                                    <span class="badge badge-info">Candidate</span>
                                     break;
                                 case "Shadow":
                                     <span class="badge badge-neutral">Shadow</span>
@@ -111,6 +111,9 @@
                     </div>
                 }
 
+                @* A clean sheet is not a section worth printing. *@
+                @if (_profile.CriminalRecord.Total > 0)
+                {
                 <div class="mt-4">
                     <h4 class="text-lg font-bold mb-2">Criminal Record</h4>
                     <div class="stats stats-horizontal bg-base-100 shadow-sm">
@@ -128,13 +131,17 @@
                         </div>
                     </div>
                 </div>
+                }
             </div>
         </div>
 
         @* Radio tabs rather than Blazor state: no interactivity needed, so they work under
            static prerender exactly as they do once WASM has taken over. *@
         <div class="max-w-[800px] m-auto mt-6">
-            <div class="tabs tabs-lift">
+            @* Keyed on the member: without this the radio group keeps its DOM state across a
+               profile switch, and if the Best Reviews tab was selected and the next member has no
+               gems, its input is removed leaving nothing checked — every panel hidden. *@
+            <div class="tabs tabs-lift" @key="UserId">
 
                 <input type="radio" name="profile-tabs" class="tab" aria-label="Reviews" checked/>
                 <div class="tab-content bg-base-100 border-base-300 p-4">

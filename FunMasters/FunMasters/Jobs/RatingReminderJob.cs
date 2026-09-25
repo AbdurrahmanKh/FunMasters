@@ -53,6 +53,8 @@ public class RatingReminderJob : BackgroundService
         DateTime threeDaysAgo = now.AddDays(-3);
         DateTime tooOld = now.AddDays(-14);
 
+        // The window is narrower than a deliberation period, so only the title that concluded most
+        // recently is ever chased — older ones fall out of it on their own.
         var finishedGames = await db.Suggestions
             .Include(s => s.Ratings)
             .ThenInclude(r => r.Rater)
@@ -101,7 +103,7 @@ public class RatingReminderJob : BackgroundService
 
             // Check for short/missing comments
             var shortCommentRaters = game.Ratings
-                .Where(r => eligibleIds.Contains(r.RaterId) && !OffenceRules.IsCommentSubstantial(r.Comment))
+                .Where(r => eligibleIds.Contains(r.RaterId) && !OffenceRules.IsVerdictSubstantial(r.Comment))
                 .ToList();
 
             if (shortCommentRaters.Count > 0)

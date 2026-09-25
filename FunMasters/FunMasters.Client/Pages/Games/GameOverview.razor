@@ -153,14 +153,14 @@
                                                             Confirm — this cannot be undone
                                                         </button>
                                                         <button class="btn btn-ghost btn-xs" disabled="@_awardingGem"
-                                                                @onclick="() => _confirmingGemFor = null">
+                                                                @onclick="() => { _confirmingGemFor = null; _gemError = null; }">
                                                             Cancel
                                                         </button>
                                                     }
                                                     else
                                                     {
                                                         <button class="btn btn-outline btn-warning btn-xs"
-                                                                @onclick="() => _confirmingGemFor = rating.Id">
+                                                                @onclick="() => { _confirmingGemFor = rating.Id; _gemError = null; }">
                                                             💎 Award gem
                                                         </button>
                                                     }
@@ -282,6 +282,12 @@
             {
                 _gemError = result.ErrorMessage;
             }
+        }
+        catch (Exception)
+        {
+            // Never let this escape: the button says the gem cannot be undone, so the reader must
+            // be told what happened rather than meeting the unhandled-error bar.
+            _gemError = "The Council could not record your gem. Please try again.";
         }
         finally
         {

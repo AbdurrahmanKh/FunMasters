@@ -48,7 +48,17 @@ public class GemService(
             AwardedById = userId
         });
 
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // The check above is not atomic: a double-click puts two requests past it and the
+            // unique index on (SuggestionId, AwardedById) catches the loser. Report it the same
+            // way rather than letting a 500 escape.
+            return ApiResult<int>.Fail("You have already awarded your gem for this game");
+        }
 
         return ApiResult<int>.Ok(await db.Gems.CountAsync(g => g.RatingId == rating.Id));
     }
