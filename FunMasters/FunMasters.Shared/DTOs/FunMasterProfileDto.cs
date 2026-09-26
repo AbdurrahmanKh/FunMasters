@@ -1,4 +1,6 @@
-﻿namespace FunMasters.Shared.DTOs;
+﻿using FunMasters.Shared;
+
+namespace FunMasters.Shared.DTOs;
 
 public class FunMasterProfileDto
 {
@@ -6,7 +8,7 @@ public class FunMasterProfileDto
     public string UserName { get; set; } = null!;
     public string? Bio { get; set; }
     public string? AvatarUrl { get; set; }
-    public string CouncilStatus { get; set; } = "Active";
+    public CouncilStatus CouncilStatus { get; set; } = CouncilStatus.Active;
     public List<UserBadgeDto> Badges { get; set; } = [];
     public List<SuggestionDto> SuggestedGames { get; set; } = [];
     public List<UserRatingDto> ReviewedGames { get; set; } = [];

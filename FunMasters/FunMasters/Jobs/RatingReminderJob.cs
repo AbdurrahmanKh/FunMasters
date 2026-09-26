@@ -51,7 +51,7 @@ public class RatingReminderJob : BackgroundService
 
         DateTime now = FunMastersTime.UtcNow;
         DateTime threeDaysAgo = now.AddDays(-3);
-        DateTime tooOld = now.AddDays(-14);
+        DateTime tooOld = now - CycleService.SettlementPeriod;
 
         // The window is narrower than a deliberation period, so only the title that concluded most
         // recently is ever chased — older ones fall out of it on their own.

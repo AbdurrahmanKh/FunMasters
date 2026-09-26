@@ -34,21 +34,21 @@
                             <tr>
                                 <td>@user.CycleOrder</td>
                                 <td>@user.Email</td>
-                                <td><a href="/funmaster/@user.Id" class="@(user.CouncilStatus == "Executed" ? "line-through opacity-60" : "")">@user.UserName</a></td>
+                                <td><a href="/funmaster/@user.Id" class="@(user.CouncilStatus == CouncilStatus.Executed ? "line-through opacity-60" : "")">@user.UserName</a></td>
                                 <td>@string.Join(", ", user.Roles)</td>
                                 <td>
                                     @switch (user.CouncilStatus)
                                     {
-                                        case "Excommunicated":
+                                        case CouncilStatus.Excommunicated:
                                             <span class="badge badge-warning badge-sm">Excommunicated</span>
                                             break;
-                                        case "Executed":
+                                        case CouncilStatus.Executed:
                                             <span class="badge badge-error badge-sm">Executed</span>
                                             break;
-                                        case "Candidate":
+                                        case CouncilStatus.Candidate:
                                             <span class="badge badge-info badge-sm">Candidate</span>
                                             break;
-                                        case "Shadow":
+                                        case CouncilStatus.Shadow:
                                             <span class="badge badge-neutral badge-sm">Shadow</span>
                                             break;
                                         default:

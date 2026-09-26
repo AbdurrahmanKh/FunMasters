@@ -44,7 +44,7 @@
                     <li>
                         <NavLink href="@($"funmaster/{member.Id}")" ActiveClass="menu-active">
                             <img src="@member.AvatarUrl" alt="" class="w-5 h-5 mask mask-squircle"/>
-                            <span class="@(member.CouncilStatus == "Executed" ? "line-through opacity-60" : "")">
+                            <span class="@(member.CouncilStatus == CouncilStatus.Executed ? "line-through opacity-60" : "")">
                                 @member.UserName
                             </span>
                         </NavLink>

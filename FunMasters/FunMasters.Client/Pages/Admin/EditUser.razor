@@ -56,11 +56,11 @@
                     <label class="floating-label">
                         <span>Council Status</span>
                         <InputSelect class="select" @bind-Value="_selectedStatus">
-                            <option value="Active">Active</option>
-                            <option value="Candidate">Candidate</option>
-                            <option value="Excommunicated">Excommunicated</option>
-                            <option value="Executed">Executed</option>
-                            <option value="Shadow">Shadow</option>
+                            <option value="@CouncilStatus.Active">Active</option>
+                            <option value="@CouncilStatus.Candidate">Candidate</option>
+                            <option value="@CouncilStatus.Excommunicated">Excommunicated</option>
+                            <option value="@CouncilStatus.Executed">Executed</option>
+                            <option value="@CouncilStatus.Shadow">Shadow</option>
                         </InputSelect>
                     </label>
 
@@ -121,7 +121,7 @@
     [PersistentState] public InputModel? Model { get; set; }
     [CascadingParameter] public Task<AuthenticationState> AuthenticationStateTask { get; set; }
     private string _selectedRole = "";
-    private string _selectedStatus = "Active";
+    private CouncilStatus _selectedStatus = CouncilStatus.Active;
     private bool _loading = true;
     private bool _isSubmitting;
     private string? _errorMessage;

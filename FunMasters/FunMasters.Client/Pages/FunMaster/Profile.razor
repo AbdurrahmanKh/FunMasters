@@ -22,20 +22,20 @@
                 <div class="flex items-center gap-4">
                     <img src="@_profile.AvatarUrl" class="w-20 h-20 mask mask-squircle"/>
                     <div>
-                        <h2 class="text-3xl text-primary @(_profile.CouncilStatus == "Executed" ? "line-through opacity-60" : "")">@_profile.UserName</h2>
+                        <h2 class="text-3xl text-primary @(_profile.CouncilStatus == CouncilStatus.Executed ? "line-through opacity-60" : "")">@_profile.UserName</h2>
                         <div class="flex gap-1 items-center mt-1">
                             @switch (_profile.CouncilStatus)
                             {
-                                case "Excommunicated":
+                                case CouncilStatus.Excommunicated:
                                     <span class="badge badge-warning">Excommunicated</span>
                                     break;
-                                case "Executed":
+                                case CouncilStatus.Executed:
                                     <span class="badge badge-error">Executed</span>
                                     break;
-                                case "Candidate":
+                                case CouncilStatus.Candidate:
                                     <span class="badge badge-info">Candidate</span>
                                     break;
-                                case "Shadow":
+                                case CouncilStatus.Shadow:
                                     <span class="badge badge-neutral">Shadow</span>
                                     break;
                             }
@@ -225,7 +225,7 @@
 
             <AuthorizeView>
                 <Authorized>
-                    @if (_profile.CouncilStatus != "Executed")
+                    @if (_profile.CouncilStatus != CouncilStatus.Executed)
                     {
                         <div class="mb-4">
                             <div class="flex gap-2">

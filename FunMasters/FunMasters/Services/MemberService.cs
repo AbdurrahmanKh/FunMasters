@@ -68,7 +68,7 @@ public class MemberService(
                 Id = u.Id,
                 UserName = u.UserName ?? "Unknown",
                 AvatarUrl = avatarStorage.GetPublicUrl(u.Id),
-                CouncilStatus = u.CouncilStatus.ToString(),
+                CouncilStatus = u.CouncilStatus,
                 CycleOrder = u.CycleOrder,
                 Badges = u.UserBadges.Select(ub => new UserBadgeDto
                 {
