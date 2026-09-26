@@ -32,22 +32,22 @@
                                         <img src="@member.AvatarUrl" alt="@member.UserName"
                                              class="w-8 h-8 mask mask-squircle"/>
                                         <a href="/funmaster/@member.Id"
-                                           class="@(member.CouncilStatus == "Executed" ? "line-through opacity-60" : "")">
+                                           class="@(member.CouncilStatus == CouncilStatus.Executed ? "line-through opacity-60" : "")">
                                             @member.UserName
                                         </a>
                                         <UserBadgeDisplay Badges="@member.Badges" UserId="@member.Id" SizePx="16"/>
                                         @switch (member.CouncilStatus)
                                         {
-                                            case "Executed":
+                                            case CouncilStatus.Executed:
                                                 <span class="badge badge-error badge-sm">Executed</span>
                                                 break;
-                                            case "Excommunicated":
+                                            case CouncilStatus.Excommunicated:
                                                 <span class="badge badge-warning badge-sm">Excommunicated</span>
                                                 break;
-                                            case "Candidate":
+                                            case CouncilStatus.Candidate:
                                                 <span class="badge badge-info badge-sm">Candidate</span>
                                                 break;
-                                            case "Shadow":
+                                            case CouncilStatus.Shadow:
                                                 <span class="badge badge-neutral badge-sm">Shadow</span>
                                                 break;
                                         }

@@ -279,7 +279,7 @@ public class AccountService(
             UserName = user.UserName!,
             Bio = user.Bio,
             AvatarUrl = avatarStorage.GetPublicUrl(user.Id),
-            CouncilStatus = user.CouncilStatus.ToString(),
+            CouncilStatus = user.CouncilStatus,
             Badges = user.UserBadges.Select(ub => new UserBadgeDto
             {
                 BadgeId = ub.BadgeId,

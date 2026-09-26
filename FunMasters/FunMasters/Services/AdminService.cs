@@ -62,7 +62,7 @@ public class AdminService(
             CycleOrder = user.CycleOrder,
             Roles = roles.ToList(),
             AvatarUrl = avatarStorage.GetPublicUrl(user.Id),
-            CouncilStatus = user.CouncilStatus.ToString(),
+            CouncilStatus = user.CouncilStatus,
             Badges = user.UserBadges.Select(ub => new UserBadgeDto
             {
                 BadgeId = ub.BadgeId,
@@ -145,9 +145,9 @@ public class AdminService(
         user.CycleOrder = request.CycleOrder;
 
         // Update council status if provided
-        if (!string.IsNullOrEmpty(request.CouncilStatus) && Enum.TryParse<CouncilStatus>(request.CouncilStatus, out var status))
+        if (request.CouncilStatus.HasValue)
         {
-            user.CouncilStatus = status;
+            user.CouncilStatus = request.CouncilStatus.Value;
         }
 
         var result = await userManager.UpdateAsync(user);
@@ -474,11 +474,25 @@ public async Task<ApiResult> RemoveBadgeAsync(Guid userId, Guid badgeId)
             .ToDictionaryAsync(x => x.CycleNumber, x => x.Count);
 
         // Pulled whole rather than aggregated twice: one row per gem ever awarded is a small set,
-        // and both the running total and the "arrived since settling" count come out of it.
-        var gems = await db.Gems
+// and both the running total and the "arrived since settling" count come out of it. Folded
+// into per-cycle dictionaries so the projection below is O(cycles), not O(cycles × gems).
+        var gemCountsByCycle = new Dictionary<int, int>();
+        var gemsSinceSettledByCycle = new Dictionary<int, int>();
+        await foreach (var row in db.Gems
             .Where(g => g.Suggestion!.CycleNumber != null)
-            .Select(g => new { CycleNumber = g.Suggestion!.CycleNumber!.Value, g.AwardedAtUtc })
-            .ToListAsync();
+            .Select(g => new
+            {
+                CycleNumber = g.Suggestion!.CycleNumber!.Value,
+                g.AwardedAtUtc,
+                CycleSettledAtUtc = g.Suggestion!.Cycle!.WriterSettledAtUtc
+            })
+            .AsAsyncEnumerable())
+        {
+            gemCountsByCycle[row.CycleNumber] = gemCountsByCycle.GetValueOrDefault(row.CycleNumber) + 1;
+            if (row.CycleSettledAtUtc is { } settled && row.AwardedAtUtc > settled)
+                gemsSinceSettledByCycle[row.CycleNumber] =
+                    gemsSinceSettledByCycle.GetValueOrDefault(row.CycleNumber) + 1;
+        }
 
         var writerIds = cycles
             .Where(c => c.WriterOfTheCycleUserId != null)
@@ -495,10 +509,8 @@ public async Task<ApiResult> RemoveBadgeAsync(Guid userId, Guid badgeId)
             StartAtUtc = c.StartAtUtc,
             EndAtUtc = c.EndAtUtc,
             GameCount = gameCounts.GetValueOrDefault(c.CycleNumber),
-            CurrentGemCount = gems.Count(g => g.CycleNumber == c.CycleNumber),
-            GemsSinceSettled = c.WriterSettledAtUtc == null
-                ? 0
-                : gems.Count(g => g.CycleNumber == c.CycleNumber && g.AwardedAtUtc > c.WriterSettledAtUtc),
+            CurrentGemCount = gemCountsByCycle.GetValueOrDefault(c.CycleNumber),
+            GemsSinceSettled = gemsSinceSettledByCycle.GetValueOrDefault(c.CycleNumber),
             WriterUserName = c.WriterOfTheCycleUserId is Guid wid ? writerNames.GetValueOrDefault(wid) : null,
             WriterGemCount = c.WriterGemCount,
             WriterSettledAtUtc = c.WriterSettledAtUtc

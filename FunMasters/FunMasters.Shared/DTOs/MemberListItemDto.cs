@@ -9,7 +9,7 @@ public class MemberListItemDto
     public Guid Id { get; set; }
     public string UserName { get; set; } = null!;
     public string? AvatarUrl { get; set; }
-    public string CouncilStatus { get; set; } = "Active";
+    public CouncilStatus CouncilStatus { get; set; } = CouncilStatus.Active;
     public int CycleOrder { get; set; }
     public List<UserBadgeDto> Badges { get; set; } = [];
 
