@@ -19,4 +19,5 @@ public class RatingDto
     public int? Playtime2WeeksMinutes { get; set; }
     public string PlaytimeForeverDisplay => PlaytimeUtils.FormatMinutes(PlaytimeForeverMinutes);
     public string Playtime2WeeksDisplay => PlaytimeUtils.FormatMinutes(Playtime2WeeksMinutes);
+    public int GemCount { get; set; }
 }

@@ -1,0 +1,96 @@
+@page "/members"
+@inject IMemberApiService MemberApi
+
+<PageTitle>Members</PageTitle>
+
+<div class="max-w-[900px] m-auto mt-6 px-2">
+    <h1 class="text-3xl text-primary mb-4">The Council</h1>
+
+    @if (Members == null)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <div class="card bg-base-200 shadow-md">
+            <div class="card-body p-3 md:p-6">
+                <div class="overflow-x-auto rounded-box border border-base-content/5 bg-base-100">
+                    <table class="table table-zebra">
+                        <thead>
+                        <tr>
+                            <th>Fun Master</th>
+                            <th class="text-center">Gems</th>
+                            <th class="text-center">Criminal Record</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var member in Members)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="flex items-center gap-2">
+                                        <img src="@member.AvatarUrl" alt="@member.UserName"
+                                             class="w-8 h-8 mask mask-squircle"/>
+                                        <a href="/funmaster/@member.Id"
+                                           class="@(member.CouncilStatus == "Executed" ? "line-through opacity-60" : "")">
+                                            @member.UserName
+                                        </a>
+                                        <UserBadgeDisplay Badges="@member.Badges" UserId="@member.Id" SizePx="16"/>
+                                        @switch (member.CouncilStatus)
+                                        {
+                                            case "Executed":
+                                                <span class="badge badge-error badge-sm">Executed</span>
+                                                break;
+                                            case "Excommunicated":
+                                                <span class="badge badge-warning badge-sm">Excommunicated</span>
+                                                break;
+                                            case "Candidate":
+                                                <span class="badge badge-info badge-sm">Candidate</span>
+                                                break;
+                                            case "Shadow":
+                                                <span class="badge badge-neutral badge-sm">Shadow</span>
+                                                break;
+                                        }
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    @if (member.GemsCollected > 0)
+                                    {
+                                        <span class="text-warning">💎 @member.GemsCollected</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="opacity-40">—</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <span class="tooltip @(member.CriminalRecordNumber > 0 ? "text-error" : "opacity-40")"
+                                          data-tip="@($"{member.MissedVerdicts} missed verdict(s), {member.WeakReviews} insubstantial review(s)")">
+                                        @member.CriminalRecordNumber
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [PersistentState] public List<MemberListItemDto>? Members { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Members ??= await MemberApi.GetMembersAsync();
+        }
+        catch
+        {
+            Members = [];
+        }
+    }
+}

@@ -1,16 +1,39 @@
 ﻿@inherits LayoutComponentBase
+@inject IMemberApiService MemberApi
 
-<div class="flex flex-col grow">
-    <div class="drawer grow">
-        <input id="main-drawer" type="checkbox" class="drawer-toggle"/>
-        
-        <div class="drawer-content flex flex-col min-h-full">
-            <NavMenu/>
-            <main class="min-h-full">
-                @Body
-            </main>
+@* The member roll is fetched once here and cascaded. NavMenuItems renders twice on every page —
+   the desktop bar and the mobile drawer — so fetching it there meant the same query ran twice per
+   prerender and twice again after hydration, on every page of the site. *@
+<CascadingValue Value="_members" Name="MemberRoll">
+    <div class="flex flex-col grow">
+        <div class="drawer grow">
+            <input id="main-drawer" type="checkbox" class="drawer-toggle"/>
+
+            <div class="drawer-content flex flex-col min-h-full">
+                <NavMenu/>
+                <main class="min-h-full">
+                    @Body
+                </main>
+            </div>
+
+            <NavMenuSide/>
         </div>
-        
-        <NavMenuSide/>
     </div>
-</div>
+</CascadingValue>
+
+@code {
+    [PersistentState] public List<MemberListItemDto>? _members { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _members ??= await MemberApi.GetMembersAsync();
+        }
+        catch
+        {
+            // The roll is a convenience; the rest of the nav must still render without it.
+            _members ??= [];
+        }
+    }
+}

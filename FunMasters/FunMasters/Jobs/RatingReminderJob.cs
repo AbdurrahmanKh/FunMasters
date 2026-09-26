@@ -53,6 +53,8 @@ public class RatingReminderJob : BackgroundService
         DateTime threeDaysAgo = now.AddDays(-3);
         DateTime tooOld = now.AddDays(-14);
 
+        // The window is narrower than a deliberation period, so only the title that concluded most
+        // recently is ever chased — older ones fall out of it on their own.
         var finishedGames = await db.Suggestions
             .Include(s => s.Ratings)
             .ThenInclude(r => r.Rater)
@@ -75,9 +77,9 @@ public class RatingReminderJob : BackgroundService
                 continue;
 
             // Exclude members who registered after the game was active
-            var cutoff = game.ActiveAtUtc ?? game.FinishedAtUtc.Value;
+            var cutoff = OffenceRules.Cutoff(game);
             var eligibleMembers = allActiveMembers
-                .Where(u => u.RegistrationDateUtc <= cutoff)
+                .Where(u => OffenceRules.OwesVerdict(u, cutoff))
                 .ToList();
             var eligibleIds = eligibleMembers.Select(u => u.Id).ToHashSet();
 
@@ -101,7 +103,7 @@ public class RatingReminderJob : BackgroundService
 
             // Check for short/missing comments
             var shortCommentRaters = game.Ratings
-                .Where(r => eligibleIds.Contains(r.RaterId) && !IsCommentSubstantial(r.Comment))
+                .Where(r => eligibleIds.Contains(r.RaterId) && !OffenceRules.IsVerdictSubstantial(r.Comment))
                 .ToList();
 
             if (shortCommentRaters.Count > 0)
@@ -114,10 +116,4 @@ public class RatingReminderJob : BackgroundService
         }
     }
 
-    private static bool IsCommentSubstantial(string? comment)
-    {
-        if (string.IsNullOrWhiteSpace(comment)) return false;
-        var wordCount = comment.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-        return wordCount >= 3;
-    }
 }

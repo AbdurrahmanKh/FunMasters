@@ -24,5 +24,7 @@ builder.Services.AddScoped<IAccountApiService, AccountApiService>();
 builder.Services.AddScoped<IIgdbApiService, IgdbApiService>();
 builder.Services.AddScoped<IHltbApiService, HltbApiService>();
 builder.Services.AddScoped<ISteamApiService, SteamApiService>();
+builder.Services.AddScoped<IGemApiService, GemApiService>();
+builder.Services.AddScoped<IMemberApiService, MemberApiService>();
 
 await builder.Build().RunAsync();

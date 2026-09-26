@@ -19,6 +19,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<UserBadge> UserBadges { get; set; }
     public DbSet<FunMasterComment> FunMasterComments { get; set; }
     public DbSet<HltbCache> HltbCache { get; set; }
+    public DbSet<Gem> Gems { get; set; }
     
     
     protected override void OnModelCreating(ModelBuilder builder)
@@ -75,6 +76,34 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(e => e.Title).IsUnique();
         });
 
+        builder.Entity<Gem>(entity =>
+        {
+            entity.HasOne(g => g.Rating)
+                .WithMany()
+                .HasForeignKey(g => g.RatingId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(g => g.Suggestion)
+                .WithMany()
+                .HasForeignKey(g => g.SuggestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict, like FunMasterComment.Author: deleting a member must not silently
+            // erase gems they handed out and rewrite who won a past cycle.
+            entity.HasOne(g => g.AwardedBy)
+                .WithMany()
+                .HasForeignKey(g => g.AwardedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Cycle>(entity =>
+        {
+            entity.HasOne(c => c.WriterOfTheCycle)
+                .WithMany()
+                .HasForeignKey(c => c.WriterOfTheCycleUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         var utcConverter = new ValueConverter<DateTime, DateTime>(
             v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
             v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
@@ -90,6 +119,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         builder.Entity<FunMasterComment>().Property(e => e.CreatedAtUtc).HasConversion(utcConverter);
         builder.Entity<HltbCache>().Property(e => e.ExpiresAtUtc).HasConversion(utcConverter);
         builder.Entity<HltbCache>().Property(e => e.CreatedAtUtc).HasConversion(utcConverter);
+        builder.Entity<Gem>().Property(e => e.AwardedAtUtc).HasConversion(utcConverter);
+        builder.Entity<Cycle>().Property(e => e.StartAtUtc).HasConversion(utcConverter);
+        builder.Entity<Cycle>().Property(e => e.EndAtUtc).HasConversion(utcConverter);
+        builder.Entity<Cycle>().Property(e => e.WriterSettledAtUtc).HasConversion(utcConverter);
     }
     
 }

@@ -236,6 +236,23 @@ public static class AdminEndpoints
                 : Results.Json(result, statusCode: 400);
         });
 
+        // Cycles
+        // GET /api/admin/cycles
+        group.MapGet("/cycles", async (IAdminApiService service) =>
+        {
+            var result = await service.GetCyclesAsync();
+            return Results.Ok(result);
+        });
+
+        // POST /api/admin/cycles/{cycleNumber}/recompute-writer
+        group.MapPost("/cycles/{cycleNumber:int}/recompute-writer", async (
+            int cycleNumber,
+            IAdminApiService service) =>
+        {
+            var result = await service.RecomputeCycleWriterAsync(cycleNumber);
+            return Results.Json(result);
+        });
+
         return group;
     }
 }

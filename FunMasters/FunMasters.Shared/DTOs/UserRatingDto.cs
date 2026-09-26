@@ -21,4 +21,7 @@ public class UserRatingDto
 
     // Playtime info (from SteamPlaytime record, may be manually set)
     public int? PlaytimeForeverMinutes { get; set; }
+
+    // Gems this review has drawn from other members
+    public int GemCount { get; set; }
 }

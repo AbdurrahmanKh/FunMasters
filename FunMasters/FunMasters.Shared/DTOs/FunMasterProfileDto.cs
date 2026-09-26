@@ -11,6 +11,37 @@ public class FunMasterProfileDto
     public List<SuggestionDto> SuggestedGames { get; set; } = [];
     public List<UserRatingDto> ReviewedGames { get; set; } = [];
     public List<FunMasterCommentDto> Comments { get; set; } = [];
+
+    /// <summary>The three titles this member scored highest; ties fall to whichever they judged first.</summary>
+    public List<UserRatingDto> TopRatedGames { get; set; } = [];
+
+    /// <summary>Up to three of their reviews that drew gems, richest first. Empty when they have none.</summary>
+    public List<UserRatingDto> BestReviews { get; set; } = [];
+
+    /// <summary>Gems their reviews have drawn, all time.</summary>
+    public int TotalGems { get; set; }
+
+    public CriminalRecordDto CriminalRecord { get; set; } = new();
+
+    public List<CycleAwardDto> WriterOfTheCycleWins { get; set; } = [];
+}
+
+public class CriminalRecordDto
+{
+    /// <summary>Concluded titles they owed a verdict on and never delivered.</summary>
+    public int MissedVerdicts { get; set; }
+
+    /// <summary>Verdicts delivered with fewer than three words.</summary>
+    public int WeakReviews { get; set; }
+
+    public int Total => MissedVerdicts + WeakReviews;
+}
+
+public class CycleAwardDto
+{
+    public int CycleNumber { get; set; }
+    public int GemCount { get; set; }
+    public DateTime? EndAtUtc { get; set; }
 }
 
 public class FunMasterCommentDto
