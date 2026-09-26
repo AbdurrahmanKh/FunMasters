@@ -9,8 +9,12 @@
 
     @if (RatingsModel is { Count: > 0 })
     {
-        <h4 class="text-4xl text-center my-4">My Ratings</h4>
-        <div class="grid grid-cols-1 md:grid-cols-fill-[460px] gap-5 items-start">
+        <h4 class="text-4xl text-center my-4">
+            My Ratings
+            <span class="badge badge-neutral badge-lg align-middle">@RatingsModel.Count</span>
+        </h4>
+
+        <div class="grid grid-cols-1 md:grid-cols-fill-[460px] gap-5 items-stretch">
             @foreach (var ratingModel in RatingsModel)
             {
                 <ReviewedCard Model="ratingModel" OnSave="UpdateRating"/>

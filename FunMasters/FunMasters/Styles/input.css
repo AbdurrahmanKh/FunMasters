@@ -424,3 +424,35 @@
     top: 0.6rem;
     cursor: pointer;
 }
+
+/* ── Full-bleed verdict card ─────────────────────────────────────────────────
+   Every card is the same height so the wall stays even: the review takes the
+   leftover space and clips, rather than pushing the card taller. --fm-card-h
+   and --fm-bleed-w are the two knobs. */
+.fm-verdict-fixed {
+    --fm-card-h: 19.5rem;  /* card height - the main knob for how much review fits */
+    --fm-bleed-w: 13rem;   /* how much of the left edge the cover takes */
+    height: var(--fm-card-h);
+}
+
+.fm-cover-bleed {
+    display: block;
+    width: var(--fm-bleed-w);
+    height: 100%;
+}
+
+@media (max-width: 40rem) {
+    /* Narrow screens: a fixed height squeezes the text too hard. */
+    .fm-verdict-fixed { --fm-card-h: 17rem; --fm-bleed-w: 9rem; }
+}
+
+/* Half-height verdict card, for lists that sit alongside other content. */
+.fm-verdict-fixed.fm-verdict-sm {
+    --fm-card-h: 9.75rem;
+    --fm-bleed-w: 6.5rem;
+}
+
+.fm-verdict-sm .fm-stat-score { width: 2.6rem; height: 2.6rem; }
+.fm-verdict-sm .fm-stat { width: 2.2rem; height: 2.2rem; }
+.fm-verdict-sm .fm-stat-value { font-size: 0.9rem; }
+.fm-verdict-sm .fm-stat-sub { font-size: 0.45rem; }
